@@ -1,0 +1,58 @@
+# PGADMIN_DEFAULT_EMAIL=admin@example.com
+# PGADMIN_DEFAULT_PASSWORD=changeme
+# FQDN_PGADMIN=pgadmin.example.com
+# OAUTH_CLIENT_ID=pgadmin
+# OAUTH_CLIENT_SECRET=insecure_secret
+# AUTHENTIK_URL=https://auth.prod.dlplab.app
+# TZ=Australia/Sydney
+---
+volumes:
+  pgadmin_storage:
+
+networks:
+  frontend:
+    external: true
+
+services:
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    hostname: pgadmin
+    container_name: pgadmin
+    networks: ['frontend']
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=frontend"
+      - "traefik.http.routers.pgadmin-https.tls=true"
+      - "traefik.http.routers.pgadmin-https.tls.certresolver=route53"
+      - "traefik.http.routers.pgadmin-https.rule=Host(`${FQDN_PGADMIN}`)"
+      - "traefik.http.routers.pgadmin-https.entrypoints=websecure"
+      - "traefik.http.routers.pgadmin-https.service=pgadmin-svc"
+      - "traefik.http.services.pgadmin-svc.loadbalancer.server.port=80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
+      - CA_CERTS=/certs/dlplab-root-v5.pem
+      - PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION=True
+      - PGADMIN_CONFIG_AUTHENTICATION_SOURCES="['oauth2', 'internal']"
+      - PGADMIN_CONFIG_OAUTH2_AUTO_CREATE_USER=True
+      - PGADMIN_CONFIG_OAUTH2_CONFIG="[{ \
+          'OAUTH2_NAME': 'authentik', \
+          'OAUTH2_DISPLAY_NAME': 'authentik', \
+          'OAUTH2_CLIENT_ID': '${OAUTH_CLIENT_ID}', \
+          'OAUTH2_CLIENT_SECRET': '${OAUTH_CLIENT_SECRET}', \
+          'OAUTH2_TOKEN_URL': '${AUTHENTIK_URL}/application/o/token/', \
+          'OAUTH2_AUTHORIZATION_URL': '${AUTHENTIK_URL}/application/o/authorize/', \
+          'OAUTH2_API_BASE_URL': '${AUTHENTIK_URL}/', \
+          'OAUTH2_USERINFO_ENDPOINT': '${AUTHENTIK_URL}/application/o/userinfo/', \
+          'OAUTH2_SERVER_METADATA_URL': '${AUTHENTIK_URL}/application/o/pgadmin/.well-known/openid-configuration', \
+          'OAUTH2_SCOPE': 'openid email profile', \
+          'OAUTH2_USERNAME_CLAIM': 'email', \
+          'OAUTH2_ICON': 'fa-openid', \
+          'OAUTH2_BUTTON_COLOR': '#fd4b2d' \
+        }]"
+      - PGADMIN_CONFIG_SESSION_COOKIE_SECURE=True
+      - TZ=${TZ}
+    volumes:
+      - pgadmin_storage:/var/lib/pgadmin
+      - /docker/compose/pgadmin/certs/dlplab-root-v5.pem:/certs/dlplab-root-v5.pem:ro
