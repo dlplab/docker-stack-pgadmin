@@ -40,4 +40,4 @@ services:
     volumes:
       - pgadmin_storage:/var/lib/pgadmin
       - /docker/compose/pgadmin/certs/dlplab-root-v5.pem:/certs/dlplab-root-v5.pem:ro
-      - /docker/compose/pgadmin/config_local.py:/pgadmin4/config_local.py:ro
+      - /docker/compose/pgadmin/config/config_local.py:/pgadmin4/config_local.py:ro
